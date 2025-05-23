@@ -1,0 +1,275 @@
+import edu.princeton.cs.algs4.Picture;
+
+public class SeamCarver {
+    private Picture picture;  // current picture
+    private int width;        // current width
+    private int height;       // current height
+
+    // create a seam carver object based on the given picture
+    public SeamCarver(Picture picture) {
+        if (picture == null)
+            throw new IllegalArgumentException("Argument is null");
+        // Make a deep copy to avoid mutating the input picture
+        this.picture = new Picture(picture);
+        this.width = picture.width();
+        this.height = picture.height();
+    }
+
+    // returns a copy of the current picture
+    public Picture picture() {
+        return new Picture(picture);
+    }
+
+    // width of current picture
+    public int width() {
+        return width;
+    }
+
+    // height of current picture
+    public int height() {
+        return height;
+    }
+
+    // energy of pixel at column x and row y
+    public double energy(int x, int y) {
+        // Validate indices
+        validateColumnIndex(x);
+        validateRowIndex(y);
+
+        // Compute neighbor indices
+        int xLeft, xRight, yUp, yDown;
+        if (x == 0)
+            xLeft = width - 1;
+        else
+            xLeft = x - 1;
+
+        if (x == width - 1)
+            xRight = 0;
+        else
+            xRight = x + 1;
+
+        if (y == 0)
+            yUp = height - 1;
+        else
+            yUp = y - 1;
+
+        if (y == height - 1)
+            yDown = 0;
+        else
+            yDown = y + 1;
+
+        // Retrieve the colors of the four neighbors using getARGB
+        int argbLeft = picture.getARGB(xLeft, y);
+        int argbRight = picture.getARGB(xRight, y);
+        int argbUp = picture.getARGB(x, yUp);
+        int argbDown = picture.getARGB(x, yDown);
+
+        double deltaX2 = squareColorDiff(argbRight, argbLeft);
+        double deltaY2 = squareColorDiff(argbDown, argbUp);
+        return Math.sqrt(deltaX2 + deltaY2);
+    }
+
+    // Compute the squared difference between two color values
+    private double squareColorDiff(int argb1, int argb2) {
+        // Extract red, green, blue components from argb1
+        int r1 = (argb1 >> 16) & 0xFF;
+        int g1 = (argb1 >> 8) & 0xFF;
+        int b1 = argb1 & 0xFF;
+        // Extract red, green, blue components from argb2
+        int r2 = (argb2 >> 16) & 0xFF;
+        int g2 = (argb2 >> 8) & 0xFF;
+        int b2 = argb2 & 0xFF;
+
+        int dr = r1 - r2;
+        int dg = g1 - g2;
+        int db = b1 - b2;
+
+        return dr * dr + dg * dg + db * db;
+    }
+
+    // Return an array of indices indicating the vertical seam of minimum energy
+    public int[] findVerticalSeam() {
+        int x, y;
+        // dp[y][x] is the minimal cumulative energy to reach pixel (x,y) from the top
+        double[][] dp = new double[height][width];
+        // edgeTo[y][x] stores the x-coordinate from the previous row for best path
+        int[][] edgeTo = new int[height][width];
+
+        // Initialize the top row
+        for (x = 0; x < width; x++) {
+            dp[0][x] = energy(x, 0);
+        }
+        // Build the DP table for rows 1 to height-1
+        for (y = 1; y < height; y++) {
+            for (x = 0; x < width; x++) {
+                double minEnergy = dp[y - 1][x];
+                int minIndex = x;
+                if (x > 0 && dp[y - 1][x - 1] < minEnergy) {
+                    minEnergy = dp[y - 1][x - 1];
+                    minIndex = x - 1;
+                }
+                if (x < width - 1 && dp[y - 1][x + 1] < minEnergy) {
+                    minEnergy = dp[y - 1][x + 1];
+                    minIndex = x + 1;
+                }
+                dp[y][x] = energy(x, y) + minEnergy;
+                edgeTo[y][x] = minIndex;
+            }
+        }
+        // find the minimum energy in the bottom row
+        double minTotalEnergy = dp[height - 1][0];
+        int minX = 0;
+        for (x = 1; x < width; x++) {
+            if (dp[height - 1][x] < minTotalEnergy) {
+                minTotalEnergy = dp[height - 1][x];
+                minX = x;
+            }
+        }
+        // Reconstruct the seam from bottom to top
+        int[] seam = new int[height];
+        seam[height - 1] = minX;
+        for (y = height - 1; y >= 1; y--) {
+            seam[y - 1] = edgeTo[y][seam[y]];
+        }
+        return seam;
+    }
+
+    // Return an array of indices describing the horizontal seam of minimum energy
+    public int[] findHorizontalSeam() {
+        int w = width;
+        int h = height;
+        // For horizontal seams, we build a DP table where dp[x][y] is the
+        // minimal cumulative energy
+        double[][] dp = new double[w][h];
+        int[][] edgeTo = new int[w][h];
+        int x, y;
+        // Initialize the leftmost column
+        for (y = 0; y < h; y++) {
+            dp[0][y] = energy(0, y);
+        }
+        // Process columns 1 to w-1
+        for (x = 1; x < w; x++) {
+            for (y = 0; y < h; y++) {
+                double minEnergy = dp[x - 1][y];
+                int minRow = y;
+                if (y > 0 && dp[x - 1][y - 1] < minEnergy) {
+                    minEnergy = dp[x - 1][y - 1];
+                    minRow = y - 1;
+                }
+                if (y < h - 1 && dp[x - 1][y + 1] < minEnergy) {
+                    minEnergy = dp[x - 1][y + 1];
+                    minRow = y + 1;
+                }
+                dp[x][y] = energy(x, y) + minEnergy;
+                edgeTo[x][y] = minRow;
+            }
+        }
+        // Find the minimum energy in the rightmost column
+        double minTotal = dp[w - 1][0];
+        int minY = 0;
+        for (y = 1; y < h; y++) {
+            if (dp[w - 1][y] < minTotal) {
+                minTotal = dp[w - 1][y];
+                minY = y;
+            }
+        }
+        // Reconstruct the seam from right to left
+        int[] seam = new int[w];
+        seam[w - 1] = minY;
+        for (x = w - 1; x >= 1; x--) {
+            seam[x - 1] = edgeTo[x][seam[x]];
+        }
+        return seam;
+    }
+
+    // Removes the given vertical seam from the current picture
+    public void removeVerticalSeam(int[] seam) {
+        if (seam == null)
+            throw new IllegalArgumentException("Argument is null");
+        if (seam.length != height)
+            throw new IllegalArgumentException("Seam length is not = to image height");
+        validateSeam(seam, true);
+        if (width <= 1)
+            throw new IllegalArgumentException("Picture width is <= to 1");
+
+        Picture newPic = new Picture(width - 1, height);
+        int x, y;
+        // For each row copy all pixels except the one at the seam
+        for (y = 0; y < height; y++) {
+            int seamX = seam[y];
+            validateColumnIndex(seamX);
+            for (x = 0; x < width; x++) {
+                if (x < seamX)
+                    newPic.setARGB(x, y, picture.getARGB(x, y));
+                else if (x > seamX)
+                    newPic.setARGB(x - 1, y, picture.getARGB(x, y));
+            }
+        }
+        picture = newPic;
+        width--;
+    }
+
+    // Removes the given horizontal seam from the current picture
+    public void removeHorizontalSeam(int[] seam) {
+        if (seam == null)
+            throw new IllegalArgumentException("Argumentis null");
+        if (seam.length != width)
+            throw new IllegalArgumentException("Seam length is not = image width");
+        validateSeam(seam, false);
+        if (height <= 1)
+            throw new IllegalArgumentException("Picture height is <= to 1");
+
+        Picture newPic = new Picture(width, height - 1);
+        int x, y;
+        // For each column, copy all pixels except the one specified by the seam.
+        for (x = 0; x < width; x++) {
+            int seamY = seam[x];
+            for (y = 0; y < height; y++) {
+                if (y < seamY)
+                    newPic.setARGB(x, y, picture.getARGB(x, y));
+                else if (y > seamY)
+                    newPic.setARGB(x, y - 1, picture.getARGB(x, y));
+            }
+        }
+        picture = newPic;
+        height--;
+    }
+
+    // Validate that a column index is in bounds
+    private void validateColumnIndex(int x) {
+        if (x < 0 || x >= width)
+            throw new IllegalArgumentException("Column index out of bounds: " + x);
+    }
+
+    // Validate that a row index is in bounds
+    private void validateRowIndex(int y) {
+        if (y < 0 || y >= height)
+            throw new IllegalArgumentException("Row index out of bounds: " + y);
+    }
+
+    // Validate that the seam array is valid
+    private void validateSeam(int[] seam, boolean vertical) {
+        int len;
+        int limit;
+        if (vertical) {
+            len = height;
+            limit = width;
+        }
+        else {
+            len = width;
+            limit = height;
+        }
+        if (seam.length != len)
+            throw new IllegalArgumentException("Seam array length is invalid");
+        for (int i = 0; i < len; i++) {
+            if (seam[i] < 0 || seam[i] >= limit)
+                throw new IllegalArgumentException("Seam value out of bounds at" + i);
+            if (i > 0 && Math.abs(seam[i] - seam[i - 1]) > 1)
+                throw new IllegalArgumentException("Adjacent seam differ at" + i);
+        }
+    }
+
+    // Main method for unit testing
+    public static void main(String[] args) {
+    }
+}
