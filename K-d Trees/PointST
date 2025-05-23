@@ -1,0 +1,89 @@
+import edu.princeton.cs.algs4.Point2D;
+import edu.princeton.cs.algs4.Queue;
+import edu.princeton.cs.algs4.RectHV;
+import edu.princeton.cs.algs4.RedBlackBST;
+
+public class PointST<Value> {
+    private RedBlackBST<Point2D, Value> st; // initialize symbol table
+
+    // construct an empty symbol table of points
+    public PointST() {
+        st = new RedBlackBST<>();
+    }
+
+    // is the symbol table empty?
+    public boolean isEmpty() {
+        return st.isEmpty();
+
+    }
+
+    // number of points
+    public int size() {
+        return st.size();
+
+    }
+
+    // associate the value val with point p
+    public void put(Point2D p, Value val) {
+        if (p == null || val == null) throw new
+                IllegalArgumentException("first argument to put() is null");
+        st.put(p, val);
+
+
+    }
+
+    // value associated with point p
+    public Value get(Point2D p) {
+        return st.get(p);
+
+    }
+
+    // does the symbol table contain point p?
+    public boolean contains(Point2D p) {
+        return st.contains(p);
+
+    }
+
+
+    // all points in the symbol table
+    public Iterable<Point2D> points() {
+        return st.keys();
+
+
+    }
+
+    // all points that are inside the rectangle (or on the boundary)
+    public Iterable<Point2D> range(RectHV rect) {
+        if (rect == null)
+            throw new IllegalArgumentException("rect cannot be null");
+
+        Queue<Point2D> store = new Queue<>();
+
+        for (Point2D p : points()) {
+            if (rect.contains(p))
+                store.enqueue(p);
+        }
+
+        return store;
+    }
+
+    // a nearest neighbor of point p; null if the symbol table is empty
+    public Point2D nearest(Point2D p) {
+        if (p == null) throw new IllegalArgumentException("p cannot be null");
+        if (st.isEmpty())
+            return null;
+        Point2D near = null;
+        for (Point2D point : points()) {
+            if (near == null ||
+                    p.distanceSquaredTo(point) < p.distanceSquaredTo(near))
+                near = point;
+        }
+        return near;
+    }
+
+    // unit testing
+    public static void main(String[] args) {
+
+    }
+
+}
