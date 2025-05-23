@@ -1,0 +1,142 @@
+import edu.princeton.cs.algs4.CC;
+import edu.princeton.cs.algs4.Edge;
+import edu.princeton.cs.algs4.EdgeWeightedGraph;
+import edu.princeton.cs.algs4.KruskalMST;
+import edu.princeton.cs.algs4.Point2D;
+import edu.princeton.cs.algs4.StdRandom;
+
+public class Clustering {
+    private int[] clusters; // initialize cluster variable
+    private int k; // initialize number of clusters
+
+    // run the clustering algorithm and create the clusters
+    public Clustering(Point2D[] locations, int k) {
+        if (locations == null || k < 1 || k > locations.length)
+            throw new IllegalArgumentException();
+
+        this.k = k;
+        int m = locations.length;
+
+        // created weighted edge graph
+        EdgeWeightedGraph graph = new EdgeWeightedGraph(m);
+        for (int i = 0; i < m; i++) {
+            for (int j = i + 1; j < m; j++) {
+                double distance = locations[i].distanceTo(locations[j]);
+                Edge edge = new Edge(i, j, distance);
+                graph.addEdge(edge);
+
+            }
+        }
+        // compute minimum spanning tree using Kruskal's algorithm
+        KruskalMST mst = new KruskalMST(graph);
+
+        // create cluster
+        EdgeWeightedGraph cGraph = new EdgeWeightedGraph(m);
+        int edges = 0;
+        for (Edge x : mst.edges()) {
+            if (edges >= m - k) break;
+            cGraph.addEdge(x);
+            edges++;
+
+        }
+
+        CC connectedGraph = new CC(cGraph);
+        clusters = new int[m];
+        for (int i = 0; i < m; i++) {
+            clusters[i] = connectedGraph.id(i);
+        }
+
+    }
+
+    // return the cluster of the ith location
+    public int clusterOf(int i) {
+        if (i < 0 || i >= clusters.length) throw new IllegalArgumentException();
+        return clusters[i];
+
+    }
+
+    // use the clusters to reduce the dimensions of an input
+    public int[] reduceDimensions(int[] input) {
+        if (input == null || input.length != clusters.length)
+            throw new IllegalArgumentException();
+        int[] reduce = new int[k];
+        for (int i = 0; i < input.length; i++) {
+            reduce[clusters[i]] += input[i];
+
+        }
+        return reduce;
+
+    }
+
+    // unit testing (required)
+    public static void main(String[] args) {
+        int c = Integer.parseInt(args[0]);
+        int p = Integer.parseInt(args[1]);
+        Point2D[] centers = new Point2D[c];
+        for (int i = 0; i < c; i++) {
+            Point2D rdm = new Point2D(StdRandom.uniformDouble(0, 1000),
+                                      StdRandom.uniformDouble(0, 1000));
+            boolean distance = false;
+            while (!distance) {
+                distance = true;
+                for (int j = 0; j < i; j++) {
+                    if (rdm.distanceTo(centers[j]) < 4) {
+                        distance = false;
+                    }
+                }
+                if (!distance) {
+                    rdm = new Point2D(StdRandom.uniformDouble(0, 1000),
+                                      StdRandom.uniformDouble(0, 1000));
+                }
+            }
+            centers[i] = rdm;
+        }
+        // Generate locations within radius 1 of each center
+        Point2D[] locations = new Point2D[c * p];
+        int idx = 0;
+        for (int i = 0; i < c; i++) {
+            for (int j = 0; j < p; j++) {
+                while (true) {
+                    double angle = StdRandom.uniformDouble(0.0, 2 * Math.PI);
+                    double r = Math.sqrt(StdRandom.uniformDouble(0.0, 1.0));
+                    double x = centers[i].x() + r * Math.cos(angle);
+                    double y = centers[i].y() + r * Math.sin(angle);
+                    Point2D candidate = new Point2D(x, y);
+                    if (candidate.distanceTo(centers[i]) <= 1.0) {
+                        locations[idx++] = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+        // Run clustering
+        Clustering clustering = new Clustering(locations, c);
+
+        // Check clusters, each block of p should share the same id
+        boolean error = false;
+        for (int i = 0; i < c; i++) {
+            int baseId = clustering.clusterOf(i * p);
+            for (int j = 1; j < p; j++) {
+                int id = clustering.clusterOf(i * p + j);
+                if (id != baseId) {
+                    error = true;
+                    System.out.printf(
+                            "Error: points %d and %d expected same cluster "
+                                    + "(got %d vs %d)%n", i * p, i * p + j, baseId, id
+                    );
+                }
+            }
+        }
+        // Ensure different clouds have distinct cluster ids
+        for (int i = 1; i < c; i++) {
+            int id0 = clustering.clusterOf(0);
+            int idi = clustering.clusterOf(i * p);
+            if (id0 == idi) {
+                error = true;
+                System.out.print("Error");
+            }
+        }
+        if (error) System.out.println("Error detected in clustering.");
+        else System.out.println("Clustering unit test passed.");
+    }
+}
