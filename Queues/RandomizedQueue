@@ -1,0 +1,131 @@
+import edu.princeton.cs.algs4.StdOut;
+import edu.princeton.cs.algs4.StdRandom;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public class RandomizedQueue<Item> implements Iterable<Item> {
+    private Item[] queue; // initialize item array
+    private int size; // initialize size of queue
+
+    // construct an empty randomized queue
+    public RandomizedQueue() {
+        queue = (Item[]) new Object[1];
+        size = 0;
+    }
+
+    // resizing queue method
+    /* @citation Copied from:
+     * https://algs4.cs.princeton.edu/13stacks/ResizingArrayStack.java.html
+     *           Accessed 02/10/2025.
+     */
+    private void resize(int cap) {
+        assert cap >= size;
+        Item[] copy = (Item[]) new Object[cap];
+        for (int i = 0; i < size; i++) {
+            copy[i] = queue[i];
+
+        }
+        queue = copy;
+
+    }
+
+    // is the randomized queue empty?
+    public boolean isEmpty() {
+        return size == 0;
+
+    }
+
+    // return the number of items on the randomized queue
+    public int size() {
+        return size;
+
+    }
+
+    // add the item
+    public void enqueue(Item item) {
+        if (item == null) throw new IllegalArgumentException("cannot queue null item");
+        if (size == queue.length) resize(2 * queue.length);
+        queue[size++] = item;
+
+    }
+
+    // method for randomizing
+    private int randomizer() {
+        return StdRandom.uniformInt(size);
+    }
+
+    // remove and return a random item
+    public Item dequeue() {
+        if (isEmpty()) throw new NoSuchElementException("Queue is empty");
+        int random = randomizer();
+        Item item = queue[random];
+        queue[random] = queue[size - 1];
+        queue[size - 1] = null;
+        size--;
+        if (size > 0 && size == queue.length / 4) resize(queue.length / 2);
+
+        return item;
+    }
+
+    // return a random item (but do not remove it)
+    public Item sample() {
+        if (isEmpty()) throw new NoSuchElementException("Queue is empty");
+        Item item = queue[randomizer()];
+        return item;
+    }
+
+    // return an independent iterator over items in random order
+    public Iterator<Item> iterator() {
+        return new RandomizedIterator();
+    }
+
+    // randomizing array method
+    private Item[] shuffle(Item[] array) {
+
+        // make a copy of array and shuffle it
+        Item[] sarray = (Item[]) new Object[size];
+        for (int i = 0; i < size; i++) {
+            sarray[i] = array[i];
+        }
+        StdRandom.shuffle(sarray, 0, size);
+        return sarray;
+    }
+
+    private class RandomizedIterator implements Iterator<Item> {
+        private int count = 0; // size of array
+        private Item[] squeue; // create shuffled array
+
+        // randomized iterator method
+        public RandomizedIterator() {
+            squeue = shuffle(queue);
+        }
+
+        public boolean hasNext() {
+            return count < size;
+
+        }
+
+        public Item next() {
+            if (!hasNext()) throw new NoSuchElementException("No more items");
+            return squeue[count++];
+        }
+
+        public void remove() {
+            throw new UnsupportedOperationException("Remove not supported");
+        }
+    }
+
+    // unit testing (optional)
+    public static void main(String[] args) {
+        int n = 5;
+        RandomizedQueue<Integer> queue = new RandomizedQueue<Integer>();
+        for (int i = 0; i < n; i++)
+            queue.enqueue(i);
+        for (int a : queue) {
+            for (int b : queue)
+                StdOut.print(a + "-" + b + " ");
+            StdOut.println();
+        }
+    }
+}
