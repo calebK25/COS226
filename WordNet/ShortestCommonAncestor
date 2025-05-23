@@ -1,0 +1,222 @@
+import edu.princeton.cs.algs4.Digraph;
+import edu.princeton.cs.algs4.DirectedCycle;
+import edu.princeton.cs.algs4.Queue;
+import edu.princeton.cs.algs4.StdRandom;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+public class ShortestCommonAncestor {
+    private final Digraph dag; // initialize dag
+
+    // Validates if input is a rooted DAG
+    public ShortestCommonAncestor(Digraph G) {
+        if (G == null) throw new IllegalArgumentException();
+        DirectedCycle cycle = new DirectedCycle(G);
+        if (cycle.hasCycle()) throw new IllegalArgumentException("Not a DAG");
+        // Check for single root (vertex with outdegree 0)
+        int roots = 0;
+        for (int i = 0; i < G.V(); i++) {
+            if (G.outdegree(i) == 0) {
+                if (++roots > 1) throw new IllegalArgumentException("Multiple roots");
+            }
+        }
+        dag = new Digraph(G); // Defensive copy
+    }
+
+    // Validate if vertex v is within bounds
+    private void validateVertex(int v) {
+        if (v < 0 || v >= dag.V()) throw new IllegalArgumentException();
+    }
+
+    // Validate two vertices
+    private void validateVertex(int v, int w) {
+        validateVertex(v);
+        validateVertex(w);
+    }
+
+    // Returns distances from sources using HashMap
+    private Map<Integer, Integer> bfs(Iterable<Integer> sources) {
+        Map<Integer, Integer> dist = new HashMap<>(); // Dynamic distance tracking
+        Queue<Integer> queue = new Queue<>();
+        for (int s : sources) {
+            if (!dist.containsKey(s)) { // Avoid reprocessing
+                dist.put(s, 0);
+                queue.enqueue(s);
+            }
+        }
+        // Process only reachable nodes
+        while (!queue.isEmpty()) {
+            int v = queue.dequeue();
+            for (int w : dag.adj(v)) {
+                if (!dist.containsKey(w)) { // Track new nodes
+                    dist.put(w, dist.get(v) + 1);
+                    queue.enqueue(w);
+                }
+            }
+        }
+        return dist;
+    }
+
+    // Find SCA by comparing overlapping nodes in two distance maps
+    private int[] findMinPath(Map<Integer, Integer> distA, Map<Integer,
+            Integer> distB) {
+        int minDist = Integer.MAX_VALUE;
+        int ancestor = -1;
+        // Iterate only through nodes reachable from A
+        for (int node : distA.keySet()) {
+            if (distB.containsKey(node)) { // Check if also reachable from B
+                int total = distA.get(node) + distB.get(node);
+                if (total < minDist) {
+                    minDist = total;
+                    ancestor = node;
+                }
+            }
+        }
+        if (minDist == Integer.MAX_VALUE)
+            throw new IllegalArgumentException("No common ancestor");
+        return new int[] { minDist, ancestor };
+    }
+
+    // Compute SCA for single vertices
+    private int[] shortestCommonAncestor(int v, int w) {
+        validateVertex(v, w);
+        Map<Integer, Integer> distV = bfs(Set.of(v)); // BFS from v
+        Map<Integer, Integer> distW = bfs(Set.of(w)); // BFS from w
+        return findMinPath(distV, distW);
+    }
+
+    // Compute SCA for subsets (e.g., multiple sources)
+    private int[] shortestCommonAncestorSubset(
+            Iterable<Integer> subsetA, Iterable<Integer> subsetB) {
+        if (subsetA == null || subsetB == null) throw new IllegalArgumentException();
+        // Convert subsets to validated HashSets
+        Set<Integer> sourcesA = new HashSet<>();
+        for (int a : subsetA) {
+            validateVertex(a);
+            sourcesA.add(a);
+        }
+        Set<Integer> sourcesB = new HashSet<>();
+        for (int b : subsetB) {
+            validateVertex(b);
+            sourcesB.add(b);
+        }
+        // BFS from both subsets
+        Map<Integer, Integer> distA = bfs(sourcesA);
+        Map<Integer, Integer> distB = bfs(sourcesB);
+        return findMinPath(distA, distB);
+    }
+
+    // returns length of shortest common ancestor
+    public int length(int v, int w) {
+        return shortestCommonAncestor(v, w)[0];
+    }
+
+    // a shortest common ancestor of vertices v and w
+    public int ancestor(int v, int w) {
+        return shortestCommonAncestor(v, w)[1];
+    }
+
+    // validate helper method
+    private void validate(Iterable<Integer> verticies) {
+        if (verticies == null) {
+            throw new IllegalArgumentException();
+        }
+        if (!verticies.iterator().hasNext()) {
+            throw new IllegalArgumentException();
+        }
+        for (Integer vertex : verticies) {
+            if (vertex == null) {
+                throw new IllegalArgumentException();
+            }
+        }
+
+    }
+
+    // length of shortest ancestral path of vertex subsets A and B
+    public int lengthSubset(Iterable<Integer> subsetA, Iterable<Integer> subsetB) {
+        validate(subsetA);
+        validate(subsetB);
+
+        return shortestCommonAncestorSubset(subsetA, subsetB)[0];
+    }
+
+    // a shortest common ancestor of vertex subsets A and B
+    public int ancestorSubset(Iterable<Integer> subsetA, Iterable<Integer> subsetB) {
+        validate(subsetA);
+        validate(subsetB);
+        return shortestCommonAncestorSubset(subsetA, subsetB)[1];
+    }
+
+
+    // unit testing (required)
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        int m = Integer.parseInt(args[1]);
+        int[] pathsA = new int[n], pathsB = new int[n];
+        int sumA = 0, sumB = 0;
+        int minA = Integer.MAX_VALUE, minB = Integer.MAX_VALUE;
+
+
+        for (int i = 0; i < n; i++) {
+            pathsA[i] = StdRandom.uniformInt(1, m);
+            sumA += pathsA[i];
+            pathsB[i] = StdRandom.uniformInt(1, m);
+            sumB += pathsB[i];
+
+            minA = Math.min(sumA, pathsA[i]);
+            minB = Math.min(sumB, pathsB[i]);
+
+        }
+        Queue<Integer> subsetA = new Queue<>();
+        Queue<Integer> subsetB = new Queue<>();
+        Digraph digraph = new Digraph(sumA + sumB + 1);
+        int vertex = 1;
+        for (int path : pathsA) {
+            subsetA.enqueue(vertex);
+            for (int i = 0; i < path - 1; i++) {
+                digraph.addEdge(vertex, vertex + 1);
+                vertex++;
+            }
+            digraph.addEdge(vertex, 0);
+            vertex++;
+
+        }
+        for (int path : pathsB) {
+            subsetB.enqueue(vertex);
+            for (int i = 0; i < path - 1; i++) {
+                digraph.addEdge(vertex, vertex + 1);
+                vertex++;
+            }
+            digraph.addEdge(vertex, 0);
+            vertex++;
+
+        }
+
+        ShortestCommonAncestor sca = new ShortestCommonAncestor(digraph);
+        int result = sca.lengthSubset(subsetA, subsetB);
+
+        // Validate the expected result
+        if (result == minA + minB) {
+            System.out.println("Test passed.");
+        }
+        else {
+            System.out.println("Error!");
+        }
+
+        //     // other testing
+        //     In in = new In(args[0]);
+        //     Digraph G = new Digraph(in);
+        //     ShortestCommonAncestor sca = new ShortestCommonAncestor(G);
+        //     while (!StdIn.isEmpty()) {
+        //         int v = StdIn.readInt();
+        //         int w = StdIn.readInt();
+        //         int length = sca.length(v, w);
+        //         int ancestor = sca.ancestor(v, w);
+        //         StdOut.printf("length = %d, ancestor = %d\n", length, ancestor);
+        //     }
+
+    }
+}
