@@ -1,0 +1,124 @@
+import edu.princeton.cs.algs4.StdRandom;
+
+import java.util.Comparator;
+
+public class BinarySearchDeluxe {
+
+    // Returns the index of the first key in the sorted array a[]
+    // that is equal to the search key, or -1 if no such key.
+    public static <Key> int
+    firstIndexOf(Key[] a, Key key, Comparator<Key> comparator) {
+        if (a == null || key == null || comparator == null)
+            throw new IllegalArgumentException(
+                    "array, key, or comparator cannot be null");
+        int lo = 0;
+        int hi = a.length - 1;
+        int keyIndex = -1;
+        // binary search implementation
+        while (lo <= hi) {
+
+            int mid = lo + (hi - lo) / 2;
+            int compare = comparator.compare(key, a[mid]);
+            if (compare < 0) {
+                hi = mid - 1;
+            }
+            else if (compare > 0) {
+                lo = mid + 1;
+            }
+            // if the solution is exactly the middle search the
+            // left half for the 1st solution
+            else {
+                keyIndex = mid;
+                hi = mid - 1;
+            }
+        }
+        return keyIndex;
+    }
+
+    // Returns the index of the last key in the sorted array a[]
+    // that is equal to the search key, or -1 if no such key.
+    public static <Key> int lastIndexOf(Key[] a, Key key, Comparator<Key> comparator) {
+        if (a == null || key == null || comparator == null)
+            throw new IllegalArgumentException(
+                    "array, key, or comparator cannot be null");
+        int lo = 0;
+        int hi = a.length - 1;
+        int keyIndex = -1;
+
+        while (lo <= hi) {
+
+            int mid = lo + (hi - lo) / 2;
+            int compare = comparator.compare(key, a[mid]);
+            if (compare < 0) {
+                hi = mid - 1;
+            }
+            else if (compare > 0) {
+                lo = mid + 1;
+            }
+            // if the solution is exactly the middle search the
+            // right half for the last solution
+            else {
+                keyIndex = mid;
+                lo = mid + 1;
+            }
+        }
+        return keyIndex;
+    }
+
+    // unit testing (required)
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+
+        Comparator<Integer> test = Integer::compareTo;
+        int key = StdRandom.uniformInt(0, n + 2);
+        Integer[] testArray = new Integer[5 * n];
+        int index = 0;
+        for (int i = 1; i <= n; i++) {
+            for (int j = 0; j < 5; j++) {
+                testArray[index++] = i;
+            }
+        }
+        System.out.print("testArray = {");
+        for (int i = 0; i < testArray.length; i++) {
+            System.out.print(testArray[i]);
+            if (i < testArray.length - 1) {
+                System.out.print(", ");
+            }
+        }
+        System.out.println("}");
+
+        int firstIndex = BinarySearchDeluxe.firstIndexOf(testArray, key, test);
+        int lastIndex = BinarySearchDeluxe.lastIndexOf(testArray, key, test);
+
+        // find expected first and last indices by iterating
+        int expectedFirst = -1, expectedLast = -1;
+        for (int i = 0; i < testArray.length; i++) {
+            if (testArray[i].equals(key)) {
+                expectedFirst = i;
+                break;
+            }
+        }
+        for (int i = testArray.length - 1; i > 0; i--) {
+            if (testArray[i].equals(key)) {
+                expectedLast = i;
+                break;
+            }
+        }
+
+
+        // Check if expected results match actual results
+        if (firstIndex != expectedFirst || lastIndex != expectedLast) {
+            System.out.printf(
+                    "Error: key= %d, firstIndex= %d (expected %d), "
+                            + "lastIndex= %d (expected %d)%n",
+                    key, firstIndex, expectedFirst, lastIndex, expectedLast);
+        }
+        else {
+            System.out.printf("Test passed: key= %d, firstIndex= %d, "
+                                      + "lastIndex= %d%n", key,
+                              firstIndex,
+                              lastIndex);
+        }
+    }
+
+}
