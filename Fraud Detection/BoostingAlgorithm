@@ -1,0 +1,136 @@
+import edu.princeton.cs.algs4.Point2D;
+import edu.princeton.cs.algs4.StdOut;
+import edu.princeton.cs.algs4.Stopwatch;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class BoostingAlgorithm {
+    private final int n; // input length
+    private final Clustering cluster; // cluster variable
+    private final int[][] reducedInput; // reduced input array
+    private final int[] labels; // label array
+    private final double[] weights; // weight array
+    private final List<WeakLearner> learners; // WeakLearner list
+
+
+    // create the clusters and initialize your data structures
+    public BoostingAlgorithm(int[][] input, int[] labels, Point2D[] locations, int k) {
+        // throw exceptions
+        if (input == null || labels == null || locations == null)
+            throw new IllegalArgumentException();
+        if (input.length != labels.length) throw new IllegalArgumentException();
+        int m = locations.length;
+        if (k < 1 || k > m) throw new IllegalArgumentException();
+        for (int label : labels) {
+            if (label != 0 && label != 1) throw new IllegalArgumentException();
+        }
+        // initializing variables
+        this.n = input.length;
+        cluster = new Clustering(locations, k);
+        this.labels = labels.clone();
+        this.reducedInput = new int[n][k];
+        for (int i = 0; i < n; i++) {
+            int[] reduced = cluster.reduceDimensions(input[i]);
+            this.reducedInput[i] = reduced;
+        }
+        this.weights = new double[n];
+        double initialW = 1.0 / n;
+        for (int i = 0; i < n; i++) {
+            this.weights[i] = initialW;
+        }
+        this.learners = new ArrayList<>();
+
+
+    }
+
+
+    // return the current weight of the ith point
+    public double weightOf(int i) {
+        if (i < 0 || i >= n)
+            throw new IllegalArgumentException();
+        return weights[i];
+    }
+
+
+    // apply one step of the boosting algorithm
+    public void iterate() {
+        WeakLearner wl = new WeakLearner(reducedInput, weights, labels);
+        learners.add(wl);
+
+        // double misclassified weights
+        for (int i = 0; i < n; i++) {
+            if (wl.predict(reducedInput[i]) != labels[i]) {
+                weights[i] *= 2.0;
+            }
+        }
+        // re-normalize sum = 1
+        double sum = 0;
+        for (double w : weights) sum += w;
+        for (int i = 0; i < n; i++) weights[i] /= sum;
+
+
+    }
+
+
+    // return the prediction of the learner for a new sample
+    public int predict(int[] sample) {
+        if (sample == null) throw new IllegalArgumentException();
+
+        int[] reducedSample = cluster.reduceDimensions(sample);
+
+        int predict = 0;
+        for (WeakLearner wl : learners) {
+            if (wl.predict(reducedSample) == 1) predict++;
+            else predict--;
+        }
+        if (predict > 0) {
+            return 1;
+        }
+        else return 0;
+
+
+    }
+
+    // unit testing
+    public static void main(String[] args) {
+        // read in the terms from a file
+        DataSet training = new DataSet(args[0]);
+        DataSet testing = new DataSet(args[1]);
+        int k = Integer.parseInt(args[2]);
+        int t2 = Integer.parseInt(args[3]);
+
+        int[][] trainingInput = training.getInput();
+        int[][] testingInput = testing.getInput();
+        int[] trainingLabels = training.getLabels();
+        int[] testingLabels = testing.getLabels();
+        Point2D[] trainingLocations = training.getLocations();
+
+        Stopwatch timer = new Stopwatch();
+
+        // train the model
+        BoostingAlgorithm model = new BoostingAlgorithm(trainingInput, trainingLabels,
+                                                        trainingLocations, k);
+        for (int t = 0; t < t2; t++)
+            model.iterate();
+
+        // calculate the training data set accuracy
+        double trainingAccuracy = 0;
+        for (int i = 0; i < training.getN(); i++)
+            if (model.predict(trainingInput[i]) == trainingLabels[i])
+                trainingAccuracy += 1;
+        trainingAccuracy /= training.getN();
+
+        // calculate the test data set accuracy
+        double testAccuracy = 0;
+        for (int i = 0; i < testing.getN(); i++)
+            if (model.predict(testingInput[i]) == testingLabels[i])
+                testAccuracy += 1;
+        testAccuracy /= testing.getN();
+
+        StdOut.println("Training accuracy of model: " + trainingAccuracy);
+        StdOut.println("Test accuracy of model: " + testAccuracy);
+        StdOut.println("Time elasped: " + timer.elapsedTime());
+
+    }
+}
