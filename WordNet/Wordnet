@@ -1,0 +1,93 @@
+import edu.princeton.cs.algs4.Digraph;
+import edu.princeton.cs.algs4.In;
+
+import java.util.HashMap;
+import java.util.HashSet;
+
+public class WordNet {
+    private ShortestCommonAncestor sca; // shortest common ancestor
+    private HashMap<Integer, String> idtoSynset; // maps id to string
+    private HashMap<String, HashSet<Integer>> synsettoId; // maps noun to id
+    private Digraph dag; // dag instance
+
+
+    // constructor takes the name of the two input files
+    public WordNet(String synsets, String hypernyms) {
+        idtoSynset = new HashMap<Integer, String>();
+        synsettoId = new HashMap<String, HashSet<Integer>>();
+        if (synsets == null || hypernyms == null)
+            throw new IllegalArgumentException("argument cannot be null");
+        // read in synsets and hypernyms
+        In synFile = new In(synsets);
+        In hyperFile = new In(hypernyms);
+
+        while (!synFile.isEmpty()) {
+            String[] line = synFile.readLine().split(",");
+            idtoSynset.put(Integer.parseInt(line[0]), line[1]);
+            String[] nouns = line[1].split(" ");
+            // loops through nouns in synset and stores it into hashset,
+            // if it doesn't exist create a new hashset to store it
+            for (String noun : nouns) {
+                HashSet<Integer> synsetSet = synsettoId.get(noun);
+                if (synsetSet == null) {
+                    synsetSet = new HashSet<Integer>();
+                }
+                // add current id to synset and updates the mapping of nouns + id
+                synsetSet.add(Integer.parseInt(line[0]));
+                synsettoId.put(noun, synsetSet);
+            }
+        }
+        // creates digraph to store hypernyms
+        dag = new Digraph(idtoSynset.size());
+        while (!hyperFile.isEmpty()) {
+            String[] line = hyperFile.readLine().split(",");
+            int id = Integer.parseInt(line[0]);
+            // iterate through and builds a dag
+            for (int i = 1; i < line.length; i++) {
+                dag.addEdge(id, Integer.parseInt(line[i]));
+            }
+
+        }
+        // initializes ShortestCommonAncestor
+        sca = new ShortestCommonAncestor(dag);
+
+
+    }
+
+    // the set of all WordNet nouns
+    public Iterable<String> nouns() {
+        return synsettoId.keySet();
+
+    }
+
+    // is the word a WordNet noun?
+    public boolean isNoun(String word) {
+        if (word == null) throw new IllegalArgumentException();
+        return synsettoId.containsKey(word);
+
+    }
+
+    // a synset (second field of synsets.txt) that is a shortest common ancestor
+    // of noun1 and noun2 (defined below)
+    public String sca(String noun1, String noun2) {
+        if (!isNoun(noun1) || !isNoun(noun2))
+            throw new IllegalArgumentException("not included");
+
+        return idtoSynset.get(sca.ancestorSubset(synsettoId.get(noun1),
+                                                 synsettoId.get(noun2)));
+    }
+
+    // distance between noun1 and noun2 (defined below)
+    public int distance(String noun1, String noun2) {
+        if (!isNoun(noun1) || !isNoun(noun2))
+            throw new IllegalArgumentException();
+
+        return sca.lengthSubset(synsettoId.get(noun1), synsettoId.get(noun2));
+    }
+
+    // unit testing
+    public static void main(String[] args) {
+
+    }
+
+}
