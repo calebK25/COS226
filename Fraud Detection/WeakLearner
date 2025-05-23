@@ -1,0 +1,157 @@
+import java.util.Arrays;
+
+public class WeakLearner {
+    private int dp; // initialize dimension predictor
+    private int vp; // initialize value predictor
+    private int sp; // initialize sign predictor
+    private int k; // number of clusters
+
+    // train the weak learner
+    public WeakLearner(int[][] input, double[] weights, int[] labels) {
+        // throw exceptions
+        if (input == null || weights == null || labels == null ||
+                input.length != weights.length || input.length != labels.length)
+            throw new IllegalArgumentException();
+        for (double weight : weights) {
+            if (weight < 0) throw new IllegalArgumentException();
+        }
+        for (int label : labels) {
+            if (label != 0 && label != 1) throw new IllegalArgumentException();
+        }
+        int n = input.length;
+        this.k = input[0].length;
+
+        // precompute weights of 0 and 1 over full dataset
+        double totalW0 = 0, totalW1 = 0;
+
+        for (int i = 0; i < n; i++) {
+            if (labels[i] == 0) totalW0 += weights[i];
+            else totalW1 += weights[i];
+        }
+
+        // best values currently
+        double bestSum = Double.NEGATIVE_INFINITY;
+        int bestDp = -1, bestVp = Integer.MAX_VALUE, bestSp = -1;
+
+        // reuse across dimensions
+        IndexValue[] iv = new IndexValue[n];
+        double[] pfixsum0 = new double[n + 1];
+        double[] pfixsum1 = new double[n + 1];
+
+        // loop over each dimension
+        for (int d = 0; d < k; d++) {
+            for (int i = 0; i < n; i++) {
+                iv[i] = new IndexValue(i, input[i][d]);
+            }
+            Arrays.sort(iv); // sort by value
+
+            // build prefix sum
+            pfixsum0[0] = 0.0;
+            pfixsum1[0] = 0.0;
+            for (int i = 0; i < n; i++) {
+                int idx = iv[i].index;
+                if (labels[idx] == 0) {
+                    pfixsum0[i + 1] = pfixsum0[i] + weights[idx];
+                    pfixsum1[i + 1] = pfixsum1[i];
+                }
+                else {
+                    pfixsum1[i + 1] = pfixsum1[i] + weights[idx];
+                    pfixsum0[i + 1] = pfixsum0[i];
+                }
+            }
+
+            // finds stump over all the threshold values
+            for (int i = 0; i < n; i++) {
+                if (i + 1 < n && iv[i + 1].val == iv[i].val) continue;
+                int threshold = iv[i].val;
+                double left0 = pfixsum0[i + 1];
+                double left1 = pfixsum1[i + 1];
+                double right0 = totalW0 - left0;
+                double right1 = totalW1 - left1;
+
+                // if sign = 0
+                double sum0 = left0 + right1;
+                // only replace if we find a sum with greater weighted accuracy
+                if (sum0 > bestSum) {
+                    bestSum = sum0;
+                    bestDp = d;
+                    bestVp = threshold;
+                    bestSp = 0;
+                }
+                // if sign = 1
+                double sum1 = left1 + right0;
+                if (sum1 > bestSum) {
+                    bestSum = sum1;
+                    bestDp = d;
+                    bestVp = threshold;
+                    bestSp = 1;
+                }
+            }
+        }
+        this.dp = bestDp;
+        this.vp = bestVp;
+        this.sp = bestSp;
+    }
+
+    private static class IndexValue implements Comparable<IndexValue> {
+        final int index, val; // initialize index and value
+
+        // sort data by coordinate value of a data point
+        IndexValue(int idx, int v) {
+            index = idx;
+            val = v;
+        }
+
+        // compares current value
+        public int compareTo(IndexValue that) {
+            return Integer.compare(val, that.val);
+        }
+    }
+
+    // helper method for prediction
+    private int predictWith(int value, int threshold, int sign) {
+        if (value <= threshold) {
+            if (sign == 0) return 0;
+            else return 1;
+        }
+        else {
+            if (sign == 0) return 1;
+            else return 0;
+        }
+    }
+
+    // return the prediction of the learner for a new sample
+    public int predict(int[] sample) {
+
+        if (sample == null || sample.length != k) {
+            throw new IllegalArgumentException("Invalid sample");
+        }
+        return predictWith(sample[dp], vp, sp);
+
+
+    }
+
+    // return the dimension the learner uses to separate the data
+    public int dimensionPredictor() {
+        return dp;
+
+    }
+
+
+    // return the value the learner uses to separate the data
+    public int valuePredictor() {
+        return vp;
+
+    }
+
+    // return the sign the learner uses to separate the data
+    public int signPredictor() {
+        return sp;
+
+    }
+
+    // unit testing
+    public static void main(String[] args) {
+
+    }
+}
