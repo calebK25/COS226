@@ -1,0 +1,202 @@
+import edu.princeton.cs.algs4.In;
+import edu.princeton.cs.algs4.Point2D;
+import edu.princeton.cs.algs4.Queue;
+import edu.princeton.cs.algs4.RectHV;
+import edu.princeton.cs.algs4.StdRandom;
+import edu.princeton.cs.algs4.Stopwatch;
+
+public class KdTreeST<Value> {
+    private Node root; // root of tree
+    private int size; // size of tree
+
+    private class Node {
+        private Point2D p; // 2d point (key)
+        private Value val; // value
+        private Node lb, rt; // pointer to left/bottom and right/top subtree
+        private RectHV rect; // corresponding axis aligned rectangle
+        private boolean vert; // vertical or horizontal
+
+    }
+
+    // constructor - create empty 2d tree
+    public KdTreeST() {
+        root = null;
+        size = 0;
+    }
+
+    // return if empty
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    // return size
+    public int size() {
+        return size;
+    }
+
+    // adds a key-value pair
+    public void put(Point2D p, Value val) {
+        if (p == null || val == null) throw new IllegalArgumentException();
+        root = put(root, p, val, true,
+                   Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
+                   Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+    }
+
+    // helper method for put
+    private Node put(Node x, Point2D p, Value val, boolean vertical,
+                     double xmin, double ymin, double xmax, double ymax) {
+        if (x == null) {
+            Node node = new Node();
+            node.val = val;
+            node.p = p;
+            node.vert = vertical;
+            node.rect = new RectHV(xmin, ymin, xmax, ymax);
+            size++;
+            return node;
+        }
+        if (x.p.equals(p)) {
+            // If the point already exists, update its value but do not increase size
+            x.val = val;
+            return x;
+        }
+
+        if (x.vert) { // Vertical split (compare x-coordinates)
+            if (p.x() < x.p.x())
+                x.lb = put(x.lb, p, val, !x.vert,
+                           x.rect.xmin(), x.rect.ymin(), x.p.x(), x.rect.ymax());
+            else
+                x.rt = put(x.rt, p, val, !x.vert,
+                           x.p.x(), x.rect.ymin(), x.rect.xmax(), x.rect.ymax());
+        }
+        else { // Horizontal split (compare y-coordinates)
+            if (p.y() < x.p.y())
+                x.lb = put(x.lb, p, val, !x.vert,
+                           x.rect.xmin(), x.rect.ymin(), x.rect.xmax(), x.p.y());
+            else
+                x.rt = put(x.rt, p, val, !x.vert,
+                           x.rect.xmin(), x.p.y(), x.rect.xmax(), x.rect.ymax());
+        }
+        return x;
+    }
+
+    //  return a point
+    public Value get(Point2D p) {
+        if (p == null) throw new IllegalArgumentException("argument cant be null");
+        return get(root, p);
+    }
+
+    // helper method to get point
+    private Value get(Node x, Point2D p) {
+        while (x != null) {
+            if (x.p.equals(p)) return x.val;
+            if ((x.vert && p.x() < x.p.x()) || (!x.vert && p.y() < x.p.y()))
+                x = x.lb;
+            else
+                x = x.rt;
+        }
+        return null;
+    }
+
+    // return if contains p
+    public boolean contains(Point2D p) {
+        return get(p) != null;
+    }
+
+    // queue points
+    public Iterable<Point2D> points() {
+        Queue<Point2D> points = new Queue<>();
+        Queue<Node> queue = new Queue<>();
+        if (root != null) queue.enqueue(root);
+        while (!queue.isEmpty()) {
+            Node x = queue.dequeue();
+            points.enqueue(x.p);
+            if (x.lb != null) queue.enqueue(x.lb);
+            if (x.rt != null) queue.enqueue(x.rt);
+        }
+        return points;
+    }
+
+    // range search
+    public Iterable<Point2D> range(RectHV rect) {
+        if (rect == null) throw new IllegalArgumentException();
+        Queue<Point2D> points = new Queue<>();
+        range(root, rect, points);
+        return points;
+    }
+
+    // range helper method
+    private void range(Node x, RectHV rect, Queue<Point2D> points) {
+        if (x == null) return;
+        if (!x.rect.intersects(rect)) return;
+        if (rect.contains(x.p)) points.enqueue(x.p);
+        range(x.lb, rect, points);
+        range(x.rt, rect, points);
+    }
+
+    // nearest search
+    public Point2D nearest(Point2D p) {
+        if (p == null) throw new IllegalArgumentException();
+        if (root == null) return null;
+        return nearest(root, p, root.p, root.p.distanceSquaredTo(p));
+    }
+
+    // nearest helper method
+    private Point2D nearest(Node x, Point2D query, Point2D champ, double bestDistSq) {
+        if (x == null) return champ;
+
+        double dSq = query.distanceSquaredTo(x.p);
+        if (dSq < bestDistSq) {
+            champ = x.p;
+            bestDistSq = dSq;
+        }
+
+        Node first, second;
+        if ((x.vert && query.x() < x.p.x()) || (!x.vert && query.y() < x.p.y())) {
+            first = x.lb;
+            second = x.rt;
+        }
+        else {
+            first = x.rt;
+            second = x.lb;
+        }
+        // Search the closer side first
+        champ = nearest(first, query, champ, bestDistSq);
+        bestDistSq = champ.distanceSquaredTo(query); // Update best distance
+
+        // Search the farther side only if its bounding box is closer
+        if (second != null && second.rect.distanceSquaredTo(query) < bestDistSq) {
+            champ = nearest(second, query, champ, bestDistSq);
+        }
+
+        return champ;
+    }
+
+    public static void main(String[] args) {
+        /* @citation Adapted from: KdTreeVisualizer.java
+         *           Accessed 3/24/2025.
+         */
+        String filename = args[0];
+        In in = new In(filename);
+        PointST<Integer> kdtree = new PointST<Integer>();
+        for (int i = 0; !in.isEmpty(); i++) {
+            double x = in.readDouble();
+            double y = in.readDouble();
+            Point2D p = new Point2D(x, y);
+            kdtree.put(p, i);
+        }
+        /* @end-citation */
+
+        int m = 100;
+        Stopwatch stopwatch = new Stopwatch();
+        for (int i = 0; i < m; i++) {
+            kdtree.nearest(new Point2D(StdRandom.uniformDouble(0.0, 1.0),
+                                       StdRandom.uniformDouble(0.0, 1.0)));
+        }
+        double t = stopwatch.elapsedTime();
+        double cps = m / t;
+        System.out.println(cps + " " + t);
+
+
+    }
+
+}
