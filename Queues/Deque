@@ -1,0 +1,197 @@
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public class Deque<Item> implements Iterable<Item> {
+    private int size; // size of deque
+    private Node first; // first node
+    private Node last; // next node
+
+    private class Node {
+        private Item item; // item instance
+        private Node next; // points to next node
+        private Node prev; // points to previous node
+
+    }
+
+    // construct an empty deque
+    public Deque() {
+        // initialize nodes and size of deque array
+        first = null;
+        last = null;
+        size = 0;
+
+    }
+
+    // is the deque empty?
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    // return the number of items on the deque
+    public int size() {
+        return size;
+    }
+
+    // add the item to the front
+    public void addFirst(Item item) {
+        // throw exception if trying to add item that is null
+        if (item == null)
+            throw new IllegalArgumentException("Cannot call with a null argument");
+
+        Node oldFirst = first;
+        first = new Node();
+        first.item = item;
+        first.next = oldFirst;
+        first.prev = null;
+        if (isEmpty()) { // if deque was empty last should also point to first
+            last = first;
+        }
+        else {
+            oldFirst.prev = first; // update old node to previous pointer
+        }
+        first.next = oldFirst;
+        size++;
+    }
+
+
+    // add the item to the back
+    public void addLast(Item item) {
+        if (item == null) {
+            throw new IllegalArgumentException("Cannot call with a null argument");
+        }
+        Node oldLast = last;
+        last = new Node();
+        last.item = item;
+        last.prev = oldLast;
+        last.next = null;
+        if (isEmpty()) { // if deque is empty then first node should point to last node
+            first = last;
+        }
+        else {
+            oldLast.next = last; // old node pointer points to previous pointer
+        }
+        last.prev = oldLast;
+        size++;
+    }
+
+
+    // remove and return the item from the front
+    public Item removeFirst() {
+        if (isEmpty()) {
+            throw new NoSuchElementException("Queue is empty");
+        }
+        Item item = first.item;
+        first = first.next;
+        size--;
+        if (isEmpty()) {
+            last = null;
+        }
+        else {
+            first.prev = null;
+        }
+        return item;
+
+    }
+
+    // remove and return the item from the back
+    public Item removeLast() {
+        if (isEmpty()) throw new NoSuchElementException("Queue is empty");
+        Item item = last.item;
+        last = last.prev;
+        size--;
+        if (isEmpty()) {
+            first = null;
+        }
+        else {
+            last.next = null;
+        }
+        return item;
+    }
+
+    // return an iterator over items in order from front to back
+    public Iterator<Item> iterator() {
+        return new DequeIterate();
+    }
+
+    private class DequeIterate implements Iterator<Item> {
+        // create new node that points to first
+        private Node current = first;
+
+        public boolean hasNext() {
+            return current != null;
+        }
+
+        public void remove() {
+            throw new UnsupportedOperationException("Remove not supported");
+        }
+
+        public Item next() {
+            if (!hasNext()) throw new NoSuchElementException("No items to return");
+            Item item = current.item;
+            current = current.next;
+            return item;
+        }
+    }
+
+    // unit testing (required)
+    public static void main(String[] args) {
+        Deque<Integer> deque = new Deque<>();
+        // add 1-10 in the front
+        System.out.println("Test Case 1:");
+        for (int i = 1; i <= 10; i++) {
+            deque.addFirst(i);
+            System.out.println("Added to front: " + i);
+            System.out.println("(" + deque.size() + " items in queue)");
+        }
+        // remove the latest value added
+        for (int i = 1; i <= 10; i++) {
+            int removed = deque.removeLast();
+            System.out.println("Removed: " + removed);
+            System.out.println("(" + deque.size() + " items in queue)");
+            if (removed != i) {
+                System.out.println("Error: Expected " + i);
+            }
+        }
+        System.out.println(" ");
+        // add 1-10 from the back to the front
+        System.out.println("Test Case 2:");
+        for (int i = 1; i <= 10; i++) {
+            deque.addLast(i);
+            System.out.println("Added to back: " + i);
+            System.out.println("(" + deque.size() + " items in queue)");
+        }
+        // remove the first number added
+        for (int i = 1; i <= 10; i++) {
+            int removed = deque.removeFirst();
+            System.out.println("Removed: " + removed);
+            System.out.println("(" + deque.size() + " items in queue)");
+            if (removed != i) {
+                System.out.println("Error: Expected " + i);
+            }
+        }
+        System.out.println(" ");
+
+        System.out.println("Test Case 3:");
+        for (int i = 1; i <= 10; i++) {
+            deque.addFirst(i);
+            System.out.println("Added to front: " + i);
+            System.out.println("(" + deque.size() + " items in queue)");
+        }
+
+        System.out.println("Deque:");
+        int expected = 10;
+        for (int num : deque) {
+            System.out.print(num + " ");
+            if (num != expected) {
+                System.out.println("Error: Expected " + expected);
+            }
+            expected--;
+        }
+        System.out.println();
+    }
+}
+
+
+
+
+
